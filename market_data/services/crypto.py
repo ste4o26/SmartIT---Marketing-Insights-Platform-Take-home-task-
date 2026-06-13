@@ -1,15 +1,29 @@
 import datetime
 import decimal
+import logging
+import os
+import typing
 
+import cachetools
+
+from common.dtos.signal import Signal
+from common.dtos.ticker import Ticker
+from common.utils import validate_symbol
 from market_data.clients.binance import BinanceMarketDataClient
 from market_data.constants import (
+    DEFAULT_TICKER_CACHE_MAX_SIZE,
+    DEFAULT_TICKER_CACHE_TTL_SECONDS,
     FULL_CONFIDENCE_CHANGE_PERCENT,
     PERCENT_THRESHOLD,
     SignalType,
 )
-from common.dtos.signal import Signal
-from common.dtos.ticker import Ticker
-from common.utils import validate_symbol
+
+logger = logging.getLogger(__name__)
+
+_TICKER_CACHE = cachetools.TTLCache(
+    maxsize=int(os.getenv("TICKER_CACHE_MAX_SIZE") or DEFAULT_TICKER_CACHE_MAX_SIZE),
+    ttl=int(os.getenv("TICKER_CACHE_TTL_SECONDS") or DEFAULT_TICKER_CACHE_TTL_SECONDS),
+)
 
 
 class CryptoMarketDataService:
@@ -18,13 +32,17 @@ class CryptoMarketDataService:
         self._client = client or BinanceMarketDataClient()
 
     async def get_ticker(self, symbol: str) -> Ticker:
-        validate_symbol(symbol)
-        market_data = await self._client.get_ticker(symbol)
-        return market_data
+        symbol = validate_symbol(symbol)
+        if ticker := typing.cast(Ticker, _TICKER_CACHE.get(symbol)):
+            logger.info("Returning ticker from cache for symbol %s", symbol)
+            return ticker
+
+        ticker = await self._client.get_ticker(symbol)
+        _TICKER_CACHE[symbol] = ticker
+        return ticker
 
     async def get_signal(self, symbol: str) -> Signal:
-        symbol = validate_symbol(symbol)
-        ticker = await self._client.get_ticker(symbol)
+        ticker = await self.get_ticker(symbol)
         change_percent = ticker.price_change_percent
         signal_type = self._get_signal_type(change_percent)
         confidence = abs(change_percent) / FULL_CONFIDENCE_CHANGE_PERCENT
