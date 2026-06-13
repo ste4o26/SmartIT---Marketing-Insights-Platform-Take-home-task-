@@ -25,15 +25,10 @@ async def get_ticker(symbol: str):
             status_code=fastapi.status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Invalid symbol {symbol}",
         ) from e
-    except MarketDataProviderError as e:
+    except (MarketDataProviderError, MarketDataFormatMismatchError) as e:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_400_BAD_REQUEST,
-            detail="Market data provider failure",
-        ) from e
-    except MarketDataFormatMismatchError as e:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
-            detail="Incompatible provider data format",
+            detail=str(e),
         ) from e
 
 
@@ -48,13 +43,8 @@ async def get_signal(symbol: str):
             status_code=fastapi.status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Invalid symbol {symbol}",
         ) from e
-    except MarketDataProviderError as e:
+    except (MarketDataProviderError, MarketDataFormatMismatchError) as e:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_400_BAD_REQUEST,
-            detail="Market data provider failure",
-        ) from e
-    except MarketDataFormatMismatchError as e:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
-            detail="Incompatible provider data format",
+            detail=str(e),
         ) from e
