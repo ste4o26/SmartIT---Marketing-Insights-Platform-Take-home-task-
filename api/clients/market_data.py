@@ -8,6 +8,8 @@ import pydantic
 from api.exceptions import UpstreamResourceNotFoundError, UpstreamServiceError
 from common.dtos.signal import Signal
 from common.dtos.ticker import Ticker
+from common.services.auth import AuthS2S
+from common.constants import InternalService
 from common.utils import session
 
 logger = logging.getLogger(__name__)
@@ -45,7 +47,11 @@ class MarketDataClient:
 
     @session(base_url=_BASE_URL, timeout=_TIMEOUT)
     async def _get(self, session: httpx.AsyncClient, uri: str) -> dict[str, typing.Any]:
-        response = await session.get(uri)
+        service = AuthS2S()
+        token = service.get_service_token(
+            issuer=InternalService.API, audience=InternalService.MARKET_DATA
+        )
+        response = await session.get(uri, headers={"Authorization": f"Bearer {token}"})
         if response.is_error:
             logger.error("Upstream api call failure: %s", uri)
             if response.status_code == httpx.codes.NOT_FOUND:
