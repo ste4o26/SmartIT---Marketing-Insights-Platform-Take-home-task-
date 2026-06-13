@@ -6,6 +6,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY market_data ./market_data
+COPY common ./common
 
 EXPOSE 8000
 
