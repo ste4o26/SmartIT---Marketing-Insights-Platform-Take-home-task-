@@ -3,9 +3,12 @@ import inspect
 import logging
 import typing
 
+import fastapi
+import fastapi.security as security
 import httpx
+import jose
 
-from common.constants import SYMBOL_PATTERN
+from common.constants import InternalService, SYMBOL_PATTERN
 
 logger = logging.getLogger(__name__)
 
@@ -53,3 +56,43 @@ def session(
         return _decorator(func)
 
     return _decorator
+
+
+_bearer_scheme = security.HTTPBearer()
+
+
+def get_service_subject(
+    *,
+    audience: InternalService,
+    allowed_issuers: list[InternalService] | None = None,
+) -> typing.Callable:
+    from common.services.auth import AuthS2S
+
+    service = AuthS2S()
+
+    def wrap(
+        credentials: security.HTTPAuthorizationCredentials = fastapi.Depends(
+            _bearer_scheme
+        ),
+    ) -> str:
+        token = credentials.credentials
+        for issuer in allowed_issuers or []:
+            try:
+                return service.validate_service_token(
+                    token,
+                    issuer=issuer,
+                    audience=audience,
+                )
+            except (jose.JWTError, ValueError):
+                logger.error(
+                    "Internal service token validation failed for issuer=%s audience=%s",
+                    issuer,
+                    audience,
+                )
+
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid internal service token",
+        )
+
+    return wrap
