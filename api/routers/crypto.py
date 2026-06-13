@@ -1,45 +1,43 @@
 import fastapi
 
-from common.dtos.signal import Signal
-from common.dtos.ticker import Ticker
 from api.exceptions import UpstreamResourceNotFoundError, UpstreamServiceError
 from api.services.market_data import MarketDataService
-from api.utils import get_current_user_id
+from api.utils import get_user_subject
+from common.dtos.signal import Signal
+from common.dtos.ticker import Ticker
 
-router = fastapi.APIRouter(prefix="/crypto", tags=["crypto-market-data"])
+router = fastapi.APIRouter(
+    prefix="/crypto",
+    tags=["crypto-market-data"],
+    dependencies=[fastapi.Depends(get_user_subject)],
+)
 
 
 @router.get("/prices/{symbol}", response_model=Ticker)
-async def get_ticker(symbol: str, subject: int = fastapi.Depends(get_current_user_id)):
+async def get_ticker(symbol: str) -> Ticker:
     service = MarketDataService()
-
     try:
         return await service.get_ticker(symbol)
-    except UpstreamResourceNotFoundError as error:
+    except UpstreamResourceNotFoundError as e:
         raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_404_NOT_FOUND,
-            detail="Crypto symbol was not found",
-        ) from error
-    except UpstreamServiceError as error:
+            status_code=fastapi.status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except UpstreamServiceError as e:
         raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
-            detail="Invalid data format",
-        ) from error
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 @router.get("/signal/{symbol}", response_model=Signal)
-async def get_signal(symbol: str, subject: int = fastapi.Depends(get_current_user_id)):
+async def get_signal(symbol: str) -> Signal:
     service = MarketDataService()
-
     try:
         return await service.get_signal(symbol)
-    except UpstreamResourceNotFoundError as error:
+    except UpstreamResourceNotFoundError as e:
         raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_404_NOT_FOUND,
-            detail="Crypto symbol was not found",
-        ) from error
-    except UpstreamServiceError as error:
+            status_code=fastapi.status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except UpstreamServiceError as e:
         raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
-            detail="Invalid data format",
-        ) from error
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
