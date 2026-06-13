@@ -1,4 +1,7 @@
 import fastapi
+import fastapi.security as security
+
+from api.constants import TokenType
 
 
 def set_cookie(
@@ -12,3 +15,13 @@ def set_cookie(
         secure=False,
         samesite="lax",
     )
+
+
+_oauth2_scheme = security.OAuth2PasswordBearer(tokenUrl="/api/auth/access-token")
+
+
+def get_current_user_id(token: str = fastapi.Depends(_oauth2_scheme)) -> str:
+    from api.services.auth import AuthService
+
+    service = AuthService()
+    return service.validate_token(token, TokenType.ACCESS)
