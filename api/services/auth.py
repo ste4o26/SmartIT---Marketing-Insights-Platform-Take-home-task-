@@ -6,12 +6,8 @@ import typing
 import jose
 import jose.jwt as jwt
 
-from api.constants import (
-    BEARER,
-    DEFAULT_REFRESH_TOKEN_EXPIRY_TIME_IN_SECONDS,
-    DEFAULT_TOKEN_EXPIRY_TIME_IN_SECONDS,
-    TokenType,
-)
+from common.constants import BEARER, DEFAULT_TOKEN_EXPIRY_SECONDS
+from api.constants import TokenType, DEFAULT_REFRESH_TOKEN_EXPIRY_SECONDS
 from api.dtos.credential import Credential
 from api.dtos.token import Token
 
@@ -24,6 +20,15 @@ class _ExpiryTimes(typing.NamedTuple):
 
 
 class AuthService:
+
+    def __init__(self) -> None:
+        if not (secret := os.getenv("AUTH_SECRET")):
+            raise ValueError("Authentication secret isn't setup!")
+        self._secret = secret
+
+        if not (algorithm := os.getenv("AUTH_ALGORITHM")):
+            raise ValueError("Authentication algorithm isn't setup!")
+        self._algorithm = algorithm
 
     def get_access_token(self, credentials: Credential) -> Token | None:
         if not credentials.username or not credentials.password:
@@ -70,42 +75,30 @@ class AuthService:
         )
 
     def validate_token(self, token: str, token_type: TokenType) -> str:
-        secret, algorithm = self._get_auth_settings()
-        payload = jwt.decode(token, key=secret, algorithms=[algorithm])
+        payload = jwt.decode(token, key=self._secret, algorithms=[self._algorithm])
         if TokenType(payload.get("token_type")) != token_type:
             raise ValueError("Invalid token type!")
 
-        if not (subject := payload.get("subject")):
+        if not (subject := payload.get("sub")):
             raise ValueError("Refresh token subject is missing!")
         return subject
 
     def _create_token(self, subject: str, token_type: str, expires_in: int) -> str:
-        secret, algorithm = self._get_auth_settings()
         payload = {
-            "subject": subject,
+            "sub": subject,
             "token_type": token_type,
             "exp": datetime.datetime.now(datetime.UTC)
             + datetime.timedelta(seconds=expires_in),
         }
 
-        return jwt.encode(payload, key=secret, algorithm=algorithm)
-
-    def _get_auth_settings(self) -> tuple[str, str]:
-        if not (secret := os.getenv("AUTH_SECRET")):
-            raise ValueError("Authentication secret isn't setup!")
-
-        if not (algorithm := os.getenv("AUTH_ALGORITHM")):
-            raise ValueError("Authentication algorithm isn't setup!")
-
-        return secret, algorithm
+        return jwt.encode(payload, key=self._secret, algorithm=self._algorithm)
 
     def _get_expiry_times(self) -> _ExpiryTimes:
         access_expires_in = int(
-            os.getenv("TOKEN_EXPIRY_TIME_IN_SECONDS")
-            or DEFAULT_TOKEN_EXPIRY_TIME_IN_SECONDS
+            os.getenv("TOKEN_EXPIRY_SECONDS") or DEFAULT_TOKEN_EXPIRY_SECONDS
         )
         refresh_expires_in = int(
-            os.getenv("REFRESH_TOKEN_EXPIRY_TIME_IN_SECONDS")
-            or DEFAULT_REFRESH_TOKEN_EXPIRY_TIME_IN_SECONDS
+            os.getenv("REFRESH_TOKEN_EXPIRY_SECONDS")
+            or DEFAULT_REFRESH_TOKEN_EXPIRY_SECONDS
         )
         return _ExpiryTimes(access_expires_in, refresh_expires_in)
