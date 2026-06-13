@@ -1,4 +1,3 @@
-import datetime
 import logging
 import os
 
@@ -10,7 +9,7 @@ from market_data.exceptions import (
     MarketDataFormatMismatchError,
     MarketDataProviderError,
 )
-from market_data.utils import session
+from common.utils import session
 
 logger = logging.getLogger(__name__)
 
