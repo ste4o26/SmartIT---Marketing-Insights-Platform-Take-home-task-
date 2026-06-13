@@ -56,20 +56,11 @@ class AuthService:
         )
 
     def refresh_access_token(self, refresh_token: str) -> Token:
-        secret, algorithm = self._get_auth_settings()
-        payload = jwt.decode(refresh_token, key=secret, algorithms=[algorithm])
-        if TokenType(payload.get("token_type")) != TokenType.REFRESH:
-            raise ValueError("Invalid refresh token!")
-
-        if not (subject := payload.get("subject")):
-            raise ValueError("Refresh token subject is missing!")
-
-        print(TokenType(payload.get("token_type")))
+        subject = self.validate_token(refresh_token, TokenType.REFRESH)
         expires_in, _ = self._get_expiry_times()
         access_token = self._create_token(
             subject=subject, token_type=TokenType.ACCESS, expires_in=expires_in
         )
-
         return Token.model_validate(
             {
                 "access_token": access_token,
@@ -77,6 +68,16 @@ class AuthService:
                 "token_type": BEARER,
             }
         )
+
+    def validate_token(self, token: str, token_type: TokenType) -> str:
+        secret, algorithm = self._get_auth_settings()
+        payload = jwt.decode(token, key=secret, algorithms=[algorithm])
+        if TokenType(payload.get("token_type")) != token_type:
+            raise ValueError("Invalid token type!")
+
+        if not (subject := payload.get("subject")):
+            raise ValueError("Refresh token subject is missing!")
+        return subject
 
     def _create_token(self, subject: str, token_type: str, expires_in: int) -> str:
         secret, algorithm = self._get_auth_settings()
