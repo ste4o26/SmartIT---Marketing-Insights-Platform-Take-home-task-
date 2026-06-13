@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 _BASE_URL = os.getenv("BINANCE_BASE_URL", "https://api.binance.com")
 _TRACKER_URI = os.getenv("BINANCE_TRACKER_URI", "/api/v3/ticker/24hr")
-_TIMEOUT = float(os.getenv("BINANCE_REQUEST_TIMEOUT_IN_SECONDS", "5"))
+_TIMEOUT = float(os.getenv("BINANCE_REQUEST_TIMEOUT_SECONDS", "5"))
 
 
 class BinanceMarketDataClient:
