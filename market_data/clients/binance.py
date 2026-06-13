@@ -4,7 +4,7 @@ import os
 import httpx
 import pydantic
 
-from market_data.dtos.ticker import Ticker
+from common.dtos.ticker import Ticker
 from market_data.exceptions import (
     MarketDataFormatMismatchError,
     MarketDataProviderError,

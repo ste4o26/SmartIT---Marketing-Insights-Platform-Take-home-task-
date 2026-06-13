@@ -5,11 +5,11 @@ from market_data.clients.binance import BinanceMarketDataClient
 from market_data.constants import (
     FULL_CONFIDENCE_CHANGE_PERCENT,
     PERCENT_THRESHOLD,
-    SignalPosition,
+    SignalType,
 )
-from market_data.dtos.signal import Signal
-from market_data.dtos.ticker import Ticker
-from market_data.utils import validate_symbol
+from common.dtos.signal import Signal
+from common.dtos.ticker import Ticker
+from common.utils import validate_symbol
 
 
 class CryptoMarketDataService:
@@ -26,13 +26,13 @@ class CryptoMarketDataService:
         symbol = validate_symbol(symbol)
         ticker = await self._client.get_ticker(symbol)
         change_percent = ticker.price_change_percent
-        signal = self._get_signal_type(change_percent)
+        signal_type = self._get_signal_type(change_percent)
         confidence = abs(change_percent) / FULL_CONFIDENCE_CHANGE_PERCENT
         confidence = float(min(confidence, decimal.Decimal(1)))
         return Signal.model_validate(
             {
                 "symbol": ticker.symbol,
-                "signal": signal,
+                "signal": signal_type,
                 "confidence": confidence,
                 "price": ticker.last_price,
                 "price_change_percent_24h": ticker.price_change_percent,
@@ -41,7 +41,7 @@ class CryptoMarketDataService:
             }
         )
 
-    def _get_signal_type(self, value: decimal.Decimal) -> SignalPosition:
+    def _get_signal_type(self, value: decimal.Decimal) -> SignalType:
         if abs(value) < PERCENT_THRESHOLD:
-            return SignalPosition.NEUTRAL
-        return SignalPosition.BULLISH if value > 0 else SignalPosition.BEARISH
+            return SignalType.NEUTRAL
+        return SignalType.BULLISH if value > 0 else SignalType.BEARISH

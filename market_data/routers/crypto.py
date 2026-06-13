@@ -2,8 +2,8 @@ import logging
 
 import fastapi
 
-from market_data.dtos.signal import Signal
-from market_data.dtos.ticker import Ticker
+from common.dtos.signal import Signal
+from common.dtos.ticker import Ticker
 from market_data.exceptions import (
     MarketDataFormatMismatchError,
     MarketDataProviderError,
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 router = fastapi.APIRouter(prefix="/crypto", tags=["crypto-market-data"])
 
 
-@router.get("/ticker/{symbol}", response_model=Ticker)
+@router.get("/prices/{symbol}", response_model=Ticker)
 async def get_ticker(symbol: str):
     service = CryptoMarketDataService()
 
@@ -37,7 +37,7 @@ async def get_ticker(symbol: str):
         ) from e
 
 
-@router.get("/signal/{symbol}", response_model=Signal)
+@router.get("/signals/{symbol}", response_model=Signal)
 async def get_signal(symbol: str):
     service = CryptoMarketDataService()
 
