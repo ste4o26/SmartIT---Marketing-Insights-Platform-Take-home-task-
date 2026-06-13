@@ -2,7 +2,7 @@ import decimal
 
 import pydantic
 
-from market_data.utils import validate_symbol
+from common.utils import validate_symbol
 
 
 class Ticker(pydantic.BaseModel):

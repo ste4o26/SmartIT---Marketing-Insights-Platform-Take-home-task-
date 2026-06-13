@@ -3,14 +3,13 @@ import decimal
 
 import pydantic
 
-from market_data.constants import SignalPosition
-from market_data.utils import validate_symbol
+from common.utils import validate_symbol
 
 
 class Signal(pydantic.BaseModel):
 
     symbol: str
-    signal: SignalPosition
+    signal_type: str
     confidence: float = pydantic.Field(ge=0, le=1)
     reasons: list[str]
     price: decimal.Decimal
@@ -28,5 +27,4 @@ class Signal(pydantic.BaseModel):
     def validate_non_negative_decimal(cls, value: decimal.Decimal) -> decimal.Decimal:
         if value < 0:
             raise ValueError("Market data values cannot be negative")
-
         return value
