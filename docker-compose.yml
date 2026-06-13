@@ -1,0 +1,18 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8001:8000"
+    depends_on:
+      - market-data
+
+  market-data:
+    build:
+      context: .
+      dockerfile: market_data/Dockerfile
+    ports:
+      - "8002:8000"
