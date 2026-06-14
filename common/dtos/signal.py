@@ -11,7 +11,6 @@ class Signal(pydantic.BaseModel):
     symbol: str
     signal_type: str
     confidence: float = pydantic.Field(ge=0, le=1)
-    reasons: list[str]
     price: decimal.Decimal
     price_change_percent_24h: decimal.Decimal
     source: str

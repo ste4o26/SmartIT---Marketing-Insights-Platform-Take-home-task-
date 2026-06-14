@@ -8,6 +8,7 @@ import cachetools
 
 from common.dtos.signal import Signal
 from common.dtos.ticker import Ticker
+from common.exceptions import ServiceUnavailableError
 from common.utils import validate_symbol
 from market_data.clients.binance import BinanceMarketDataClient
 from market_data.constants import (
@@ -17,6 +18,7 @@ from market_data.constants import (
     PERCENT_THRESHOLD,
     SignalType,
 )
+from market_data.exceptions import MarketDataProviderError
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +39,11 @@ class CryptoMarketDataService:
             logger.info("Returning ticker from cache for symbol %s", symbol)
             return ticker
 
-        ticker = await self._client.get_ticker(symbol)
+        try:
+            ticker = await self._client.get_ticker(symbol)
+        except ServiceUnavailableError as e:
+            raise MarketDataProviderError("Binance service is unavailable") from e
+
         _TICKER_CACHE[symbol] = ticker
         return ticker
 
@@ -50,7 +56,7 @@ class CryptoMarketDataService:
         return Signal.model_validate(
             {
                 "symbol": ticker.symbol,
-                "signal": signal_type,
+                "signal_type": signal_type,
                 "confidence": confidence,
                 "price": ticker.last_price,
                 "price_change_percent_24h": ticker.price_change_percent,
