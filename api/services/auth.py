@@ -81,7 +81,15 @@ class AuthService:
         )
 
     def validate_token(self, token: str, token_type: TokenType) -> str:
-        payload = jwt.decode(token, key=self._secret, algorithms=[self._algorithm])
+        try:
+            payload = jwt.decode(token, key=self._secret, algorithms=[self._algorithm])
+        except (
+            jose.JWTError,
+            jose.ExpiredSignatureError,
+            jose.exceptions.JWTClaimsError,
+        ) as e:
+            raise AuthenticationError("Invalid or expired user auth token") from e
+
         subject = payload.get("sub")
         if not subject or TokenType(payload.get("token_type")) != token_type:
             raise AuthenticationError("Invalid user auth token")
