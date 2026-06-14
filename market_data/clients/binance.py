@@ -6,12 +6,12 @@ import pydantic
 
 from common.dtos.ticker import Ticker
 from common.exceptions import ServiceUnavailableError
+from common.utils import session
 from market_data.exceptions import (
     MarketDataFormatMismatchError,
     MarketDataProviderError,
     MarketDataSymbolNotFoundError,
 )
-from common.utils import session
 
 logger = logging.getLogger(__name__)
 
