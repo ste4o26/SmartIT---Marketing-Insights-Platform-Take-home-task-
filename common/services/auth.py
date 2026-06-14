@@ -2,8 +2,8 @@ import datetime
 import os
 
 import fastapi
-import jose.jwt as jwt
 import jose
+import jose.jwt as jwt
 
 from common.constants import DEFAULT_TOKEN_EXPIRY_SECONDS, InternalService
 from common.exceptions import S2SAuthenticationError, UnsupportedS2SIntegrationError
@@ -90,11 +90,15 @@ class AuthS2S:
                 issuer=issuer,
                 audience=audience,
             )
-        except (jose.JWTError, jose.ExpiredSignatureError, jose.JWTClaimsError):
+        except (
+            jose.JWTError,
+            jose.ExpiredSignatureError,
+            jose.exceptions.JWTClaimsError,
+        ) as e:
             raise S2SAuthenticationError(
                 "Invalid or expired service to service auth token"
             ) from e
-        
+
         if not (subject := payload.get("sub")):
             raise S2SAuthenticationError("Service token subject is missing")
         return subject
