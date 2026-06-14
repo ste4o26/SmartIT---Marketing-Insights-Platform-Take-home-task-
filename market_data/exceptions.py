@@ -7,4 +7,8 @@ class MarketDataProviderError(MarketDataError):
 
 
 class MarketDataFormatMismatchError(MarketDataError):
+    """Raised when the upstream provider returns an unexpected payload."""
+
+
+class MarketDataSymbolNotFoundError(MarketDataError):
     """Raised when the upstream provider rejects or cannot find a symbol."""

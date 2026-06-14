@@ -5,9 +5,11 @@ import httpx
 import pydantic
 
 from common.dtos.ticker import Ticker
+from common.exceptions import ServiceUnavailableError
 from market_data.exceptions import (
     MarketDataFormatMismatchError,
     MarketDataProviderError,
+    MarketDataSymbolNotFoundError,
 )
 from common.utils import session
 
@@ -23,15 +25,32 @@ class BinanceMarketDataClient:
     @session(base_url=_BASE_URL, timeout=_TIMEOUT)
     async def get_ticker(self, session: httpx.AsyncClient, symbol: str) -> Ticker:
         symbol = symbol.upper()
-        response = await session.get(_TRACKER_URI, params={"symbol": symbol})
+        try:
+            response = await session.get(_TRACKER_URI, params={"symbol": symbol})
+        except ServiceUnavailableError as e:
+            logger.exception("Binance request failed for symbol %s", symbol)
+            raise MarketDataProviderError("Binance market data request failed") from e
+
         if response.is_error:
-            logger.error("Invalid symbol %s", symbol)
-            raise MarketDataProviderError(f"Binance rejected symbol {symbol}")
+            if response.status_code == httpx.codes.BAD_REQUEST:
+                logger.error("Binance rejected symbol %s", symbol)
+                raise MarketDataSymbolNotFoundError(
+                    f"Symbol {symbol} was not found by Binance"
+                )
+
+            logger.error(
+                "Binance returned status %s for symbol %s",
+                response.status_code,
+                symbol,
+            )
+            raise MarketDataProviderError(
+                f"Binance provider failure: {response.status_code} - {response.reason_phrase}"
+            )
 
         try:
             return Ticker.model_validate(response.json())
         except (ValueError, pydantic.ValidationError) as e:
-            logger.exception("Invalid ticker format for symbol %s", symbol)
+            logger.e("Invalid ticker format for symbol %s", symbol)
             raise MarketDataFormatMismatchError(
                 "Invalid Binance market data format"
             ) from e
