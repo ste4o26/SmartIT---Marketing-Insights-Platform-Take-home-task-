@@ -3,6 +3,7 @@ import logging
 import fastapi
 import fastapi.responses as responses
 import pydantic
+
 from api.exceptions import ApiError, InternalServiceError
 from common.exceptions import ServiceUnavailableError
 
@@ -48,9 +49,9 @@ async def handle_internal_service_error(
 ) -> responses.JSONResponse:
     logger.error("Internal service failure: %s", e)
     return responses.JSONResponse(
-        status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR, content={"detail": str(e)}
+        status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": str(e)},
     )
-
 
 
 async def handle_unexpected_error(

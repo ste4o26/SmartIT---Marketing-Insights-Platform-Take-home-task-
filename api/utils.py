@@ -8,8 +8,6 @@ from api.constants import TokenType
 from api.exceptions import AuthenticationError
 
 logger = logging.getLogger(__name__)
-
-
 _oauth2_scheme = security.OAuth2PasswordBearer(tokenUrl="/api/auth/access-token")
 
 

@@ -2,15 +2,15 @@ import logging
 import os
 import typing
 
+import fastapi
 import httpx
 import pydantic
 
 from api.exceptions import DataTransformationError, InternalServiceError
+from common.constants import InternalService
 from common.dtos.signal import Signal
 from common.dtos.ticker import Ticker
-from common.exceptions import ServiceUnavailableError
 from common.services.auth import AuthS2S
-from common.constants import InternalService
 from common.utils import session
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class MarketDataClient:
             message = self._get_http_error_message(response)
             raise InternalServiceError(
                 f"Market-data service failed {response.status_code} - {message}",
-                status_code=502,
+                status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         return response.json()
 
