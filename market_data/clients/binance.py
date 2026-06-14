@@ -28,7 +28,7 @@ class BinanceMarketDataClient:
         try:
             response = await session.get(_TRACKER_URI, params={"symbol": symbol})
         except ServiceUnavailableError as e:
-            logger.exception("Binance request failed for symbol %s", symbol)
+            logger.error("Binance request failed for symbol %s", symbol)
             raise MarketDataProviderError("Binance market data request failed") from e
 
         if response.is_error:
@@ -50,7 +50,7 @@ class BinanceMarketDataClient:
         try:
             return Ticker.model_validate(response.json())
         except (ValueError, pydantic.ValidationError) as e:
-            logger.e("Invalid ticker format for symbol %s", symbol)
+            logger.error("Invalid ticker format for symbol %s", symbol)
             raise MarketDataFormatMismatchError(
                 "Invalid Binance market data format"
             ) from e
