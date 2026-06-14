@@ -29,10 +29,13 @@ class Ticker(pydantic.BaseModel):
     @classmethod
     def validate_non_negative_decimal(cls, value: decimal.Decimal) -> decimal.Decimal:
         if value < 0:
-            raise ValueError("Market data values cannot be negative")
+            raise pydantic.ValidationError("Market data values cannot be negative")
         return value
 
     @pydantic.field_validator("symbol")
     @classmethod
     def validate_symbol(cls, value: str) -> str:
-        return validate_symbol(value)
+        try:
+            return validate_symbol(value)
+        except ValueError as e:
+            raise pydantic.ValidationError(str(e)) from e
