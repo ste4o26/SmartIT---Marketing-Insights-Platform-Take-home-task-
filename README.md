@@ -73,3 +73,6 @@ The public API validates the user token before serving crypto routes.
 It then creates a service-to-service token and calls `market_data`. 
 The market-data service validates that internal token, fetches data from Binance, 
   caches ticker responses, and returns either ticker data or a generated signal.
+
+## Actions
+Link to postman workspace: https://www.postman.com/planetary-meadow-191725/smartit-take-home-task/collection/k6nxxyt/marketing-insight-platform?action=share&source=copy-link&creator=11573987
