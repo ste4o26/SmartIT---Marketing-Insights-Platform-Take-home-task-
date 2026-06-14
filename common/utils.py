@@ -9,6 +9,7 @@ import httpx
 import jose
 
 from common.constants import InternalService, SYMBOL_PATTERN
+from common.exceptions import ServiceUnavailableError
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +47,8 @@ def session(
                     return await fn(session, *args, **kwargs)
             except httpx.ConnectError as e:
                 logger.error("The respective service is down: %s", base_url)
-                raise RuntimeError(
-                    "Requested resource couldn't be reached out because of service unavailability"
+                raise ServiceUnavailableError(
+                    f"Service at {base_url or '<missing base url>'} is unavailable"
                 ) from e
 
         return _wrap
@@ -68,6 +69,9 @@ def get_service_subject(
 ) -> typing.Callable:
     from common.services.auth import AuthS2S
 
+    if not allowed_issuers:
+        raise ValueError(f"Service {audience} isn't setup to interact with other internal services")
+
     service = AuthS2S()
 
     def wrap(
@@ -76,7 +80,7 @@ def get_service_subject(
         ),
     ) -> str:
         token = credentials.credentials
-        for issuer in allowed_issuers or []:
+        for issuer in allowed_issuers:
             try:
                 return service.validate_service_token(
                     token,
@@ -85,7 +89,7 @@ def get_service_subject(
                 )
             except (jose.JWTError, ValueError):
                 logger.error(
-                    "Internal service token validation failed for issuer=%s audience=%s",
+                    "Internal service token validation failed for issuer %s audience %s",
                     issuer,
                     audience,
                 )

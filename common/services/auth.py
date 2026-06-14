@@ -20,7 +20,11 @@ def _get_s2s_secrets(*, issuer: InternalService, audience: InternalService) -> s
             issuer=InternalService.API, audience=InternalService.MARKET_DATA
         ): api_to_market_data_secret
     }
-    return map_[key]
+    if not (secret := map_.get(key)):
+        raise ValueError(
+            f"Unsupported service token secret mapping: issuer={issuer}, audience={audience}"
+        )
+    return secret
 
 
 def _get_s2s_client_id(*, issuer: InternalService, audience: InternalService) -> str:
@@ -33,7 +37,11 @@ def _get_s2s_client_id(*, issuer: InternalService, audience: InternalService) ->
             issuer=InternalService.API, audience=InternalService.MARKET_DATA
         ): api_to_market_data_client_id
     }
-    return map_[key]
+    if not (client_id := map_.get(key)):
+        raise ValueError(
+            f"Unsupported service client mapping: issuer={issuer}, audience={audience}"
+        )
+    return client_id
 
 
 class AuthS2S:
@@ -72,4 +80,6 @@ class AuthS2S:
             issuer=issuer,
             audience=audience,
         )
-        return payload["sub"]
+        if not (subject := payload.get("sub")):
+            raise ValueError("Service token subject is missing")
+        return subject
