@@ -17,7 +17,8 @@ async def get_access_token(credentials: Credential):
         return service.get_access_token(credentials)
     except (jose.JWTError, ValueError) as e:
         raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_400_BAD_REQUEST, detail=str(e)
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Invalid username or password",
         ) from e
 
 
@@ -32,6 +33,7 @@ async def refresh_access_token(
         token = service.refresh_access_token(credentials.credentials)
     except (jose.JWTError, ValueError) as e:
         raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_401_UNAUTHORIZED, detail=str(e)
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
         ) from e
     return token

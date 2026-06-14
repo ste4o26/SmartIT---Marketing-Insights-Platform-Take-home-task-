@@ -1,6 +1,6 @@
 import fastapi
 
-from api.exceptions import UpstreamResourceNotFoundError, UpstreamServiceError
+from api.exceptions import MarketDataApiError
 from api.services.market_data import MarketDataService
 from api.utils import get_user_subject
 from common.dtos.signal import Signal
@@ -18,14 +18,8 @@ async def get_ticker(symbol: str) -> Ticker:
     service = MarketDataService()
     try:
         return await service.get_ticker(symbol)
-    except UpstreamResourceNotFoundError as e:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
-    except UpstreamServiceError as e:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+    except MarketDataApiError as e:
+        raise fastapi.HTTPException(status_code=e.status_code, detail=str(e)) from e
 
 
 @router.get("/signal/{symbol}", response_model=Signal)
@@ -33,11 +27,5 @@ async def get_signal(symbol: str) -> Signal:
     service = MarketDataService()
     try:
         return await service.get_signal(symbol)
-    except UpstreamResourceNotFoundError as e:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
-    except UpstreamServiceError as e:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+    except MarketDataApiError as e:
+        raise fastapi.HTTPException(status_code=e.status_code, detail=str(e)) from e

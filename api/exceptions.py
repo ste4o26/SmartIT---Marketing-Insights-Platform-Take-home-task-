@@ -2,9 +2,9 @@ class ApiServiceError(Exception):
     """Base exception for API service failures."""
 
 
-class UpstreamServiceError(ApiServiceError):
-    """Raised when an upstream service cannot return usable data."""
+class MarketDataApiError(ApiServiceError):
+    """Raised when the API cannot get a usable response from market-data."""
 
-
-class UpstreamResourceNotFoundError(ApiServiceError):
-    """Raised when an upstream service cannot find the requested resource."""
+    def __init__(self, message: str, *, status_code: int = 502) -> None:
+        super().__init__(message)
+        self.status_code = status_code

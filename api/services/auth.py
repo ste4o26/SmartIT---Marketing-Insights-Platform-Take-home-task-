@@ -30,7 +30,7 @@ class AuthService:
             raise ValueError("Authentication algorithm isn't setup!")
         self._algorithm = algorithm
 
-    def get_access_token(self, credentials: Credential) -> Token | None:
+    def get_access_token(self, credentials: Credential) -> Token:
         if not credentials.username or not credentials.password:
             raise ValueError("Username and password are required to authenticate!")
 
@@ -46,9 +46,9 @@ class AuthService:
                 token_type="refresh",
                 expires_in=refresh_expires_in,
             )
-        except jose.JWTError:
+        except jose.JWTError as e:
             logger.exception("Authentication failed!")
-            return None
+            raise ValueError("Could not create authentication token") from e
 
         return Token.model_validate(
             {
@@ -77,10 +77,10 @@ class AuthService:
     def validate_token(self, token: str, token_type: TokenType) -> str:
         payload = jwt.decode(token, key=self._secret, algorithms=[self._algorithm])
         if TokenType(payload.get("token_type")) != token_type:
-            raise ValueError("Invalid token type!")
+            raise ValueError(f"Expected {token_type} token")
 
         if not (subject := payload.get("sub")):
-            raise ValueError("Refresh token subject is missing!")
+            raise ValueError("Token subject is missing")
         return subject
 
     def _create_token(self, subject: str, token_type: str, expires_in: int) -> str:
