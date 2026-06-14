@@ -40,24 +40,16 @@ class AuthService:
             )
 
         expirations = self._get_expiry_times()
-        try:
-            access_token = self._create_token(
-                subject=credentials.username,
-                token_type="access",
-                expires_in=expirations.access_token,
-            )
-            refresh_token = self._create_token(
-                subject=credentials.username,
-                token_type="refresh",
-                expires_in=expirations.refresh_token,
-            )
-        except jose.JWTError as e:
-            logger.exception("Authentication failed!")
-            raise AuthenticationError(
-                "Could not create authentication token",
-                status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
-            ) from e
-
+        access_token = self._get_token(
+            subject=credentials.username,
+            token_type=TokenType.ACCESS,
+            expires_in=expirations.access_token,
+        )
+        refresh_token = self._get_token(
+            subject=credentials.username,
+            token_type=TokenType.REFRESH,
+            expires_in=expirations.refresh_token,
+        )
         return Token.model_validate(
             {
                 "access_token": access_token,
@@ -73,14 +65,17 @@ class AuthService:
             subject = self.validate_token(refresh_token, TokenType.REFRESH)
         except (jose.JWTError, ValueError) as e:
             raise AuthenticationError("Invalid or expired refresh token") from e
-        expires_in, _ = self._get_expiry_times()
-        access_token = self._create_token(
-            subject=subject, token_type=TokenType.ACCESS, expires_in=expires_in
+
+        expirations = self._get_expiry_times()
+        access_token = self._get_token(
+            subject=subject,
+            token_type=TokenType.ACCESS,
+            expires_in=expirations.access_token,
         )
         return Token.model_validate(
             {
                 "access_token": access_token,
-                "expires_in": expires_in,
+                "expires_in": expirations.access_token,
                 "token_type": BEARER,
             }
         )
@@ -92,15 +87,20 @@ class AuthService:
             raise AuthenticationError("Invalid user auth token")
         return subject
 
-    def _create_token(self, subject: str, token_type: str, expires_in: int) -> str:
+    def _get_token(self, subject: str, token_type: TokenType, expires_in: int) -> str:
         payload = {
             "sub": subject,
             "token_type": token_type,
             "exp": datetime.datetime.now(datetime.UTC)
             + datetime.timedelta(seconds=expires_in),
         }
-
-        return jwt.encode(payload, key=self._secret, algorithm=self._algorithm)
+        try:
+            return jwt.encode(payload, key=self._secret, algorithm=self._algorithm)
+        except jose.JWTError as e:
+            raise AuthenticationError(
+                "Could not create authentication token",
+                status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            ) from e
 
     def _get_expiry_times(self) -> _ExpiryTimes:
         access_expires_in = int(
