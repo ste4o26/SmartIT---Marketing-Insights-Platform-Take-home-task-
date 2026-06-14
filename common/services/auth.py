@@ -1,9 +1,12 @@
 import datetime
 import os
 
+import fastapi
 import jose.jwt as jwt
+import jose
 
 from common.constants import DEFAULT_TOKEN_EXPIRY_SECONDS, InternalService
+from common.exceptions import S2SAuthenticationError, UnsupportedS2SIntegrationError
 
 
 def _encode_s2s_pair(*, issuer: InternalService, audience: InternalService) -> str:
@@ -21,7 +24,7 @@ def _get_s2s_secrets(*, issuer: InternalService, audience: InternalService) -> s
         ): api_to_market_data_secret
     }
     if not (secret := map_.get(key)):
-        raise ValueError(
+        raise UnsupportedS2SIntegrationError(
             f"Unsupported service token secret mapping: issuer={issuer}, audience={audience}"
         )
     return secret
@@ -38,7 +41,7 @@ def _get_s2s_client_id(*, issuer: InternalService, audience: InternalService) ->
         ): api_to_market_data_client_id
     }
     if not (client_id := map_.get(key)):
-        raise ValueError(
+        raise UnsupportedS2SIntegrationError(
             f"Unsupported service client mapping: issuer={issuer}, audience={audience}"
         )
     return client_id
@@ -67,19 +70,31 @@ class AuthS2S:
             + datetime.timedelta(seconds=expires_in),
         }
         secret = _get_s2s_secrets(issuer=issuer, audience=audience)
-        return jwt.encode(payload, key=secret, algorithm=self._algorithm)
+        try:
+            return jwt.encode(payload, key=secret, algorithm=self._algorithm)
+        except jose.JWTError as e:
+            raise S2SAuthenticationError(
+                "Could not create authentication token",
+                status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            ) from e
 
     def validate_service_token(
         self, token: str, *, issuer: InternalService, audience: InternalService
     ) -> str:
         secret = _get_s2s_secrets(issuer=issuer, audience=audience)
-        payload = jwt.decode(
-            token,
-            key=secret,
-            algorithms=[self._algorithm],
-            issuer=issuer,
-            audience=audience,
-        )
+        try:
+            payload = jwt.decode(
+                token,
+                key=secret,
+                algorithms=[self._algorithm],
+                issuer=issuer,
+                audience=audience,
+            )
+        except (jose.JWTError, jose.ExpiredSignatureError, jose.JWTClaimsError):
+            raise S2SAuthenticationError(
+                "Invalid or expired service to service auth token"
+            ) from e
+        
         if not (subject := payload.get("sub")):
-            raise ValueError("Service token subject is missing")
+            raise S2SAuthenticationError("Service token subject is missing")
         return subject

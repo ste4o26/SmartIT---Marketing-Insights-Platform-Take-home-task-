@@ -6,10 +6,9 @@ import typing
 import fastapi
 import fastapi.security as security
 import httpx
-import jose
 
 from common.constants import InternalService, SYMBOL_PATTERN
-from common.exceptions import ServiceUnavailableError
+from common.exceptions import S2SAuthenticationError, ServiceUnavailableError
 
 logger = logging.getLogger(__name__)
 
@@ -70,9 +69,16 @@ def get_service_subject(
     from common.services.auth import AuthS2S
 
     if not allowed_issuers:
-        raise ValueError(f"Service {audience} isn't setup to interact with other internal services")
+        raise S2SAuthenticationError(
+            f"Service {audience} isn't setup to interact with other internal services"
+        )
 
-    service = AuthS2S()
+    try:
+        service = AuthS2S()
+    except ValueError as e:
+        raise S2SAuthenticationError(
+            "Service to Service authentication flow isn't fully setup"
+        ) from e
 
     def wrap(
         credentials: security.HTTPAuthorizationCredentials = fastapi.Depends(
@@ -83,12 +89,10 @@ def get_service_subject(
         for issuer in allowed_issuers:
             try:
                 return service.validate_service_token(
-                    token,
-                    issuer=issuer,
-                    audience=audience,
+                    token, issuer=issuer, audience=audience
                 )
-            except (jose.JWTError, ValueError):
-                logger.error(
+            except (S2SAuthenticationError, ValueError):
+                logger.exception(
                     "Internal service token validation failed for issuer %s audience %s",
                     issuer,
                     audience,
@@ -96,7 +100,7 @@ def get_service_subject(
 
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid internal service token",
+            detail="Internal service to service token validation failed",
         )
 
     return wrap
