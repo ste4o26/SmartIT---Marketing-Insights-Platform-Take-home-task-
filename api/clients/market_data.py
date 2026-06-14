@@ -25,35 +25,19 @@ _TICKER_URI = "/market-data/crypto/prices"
 class MarketDataClient:
 
     async def get_ticker(self, symbol: str) -> Ticker:
-        try:
-            data = await self._get(f"{_TICKER_URI}/{symbol}")
-        except ServiceUnavailableError as e:
-            raise InternalServiceError("Market-data service is unavailable") from e
-
+        data = await self._get(f"{_TICKER_URI}/{symbol}")
         try:
             return Ticker.model_validate(data)
         except pydantic.ValidationError as e:
-            logger.exception(
-                "Market-data service returned invalid ticker payload for symbol %s",
-                symbol,
-            )
             raise DataTransformationError(
                 "Market-data service returned an invalid ticker payload"
             ) from e
 
     async def get_signal(self, symbol: str) -> Signal:
-        try:
-            data = await self._get(f"{_SIGNAL_URI}/{symbol}")
-        except ServiceUnavailableError as e:
-            raise InternalServiceError("Market-data service is unavailable") from e
-
+        data = await self._get(f"{_SIGNAL_URI}/{symbol}")
         try:
             return Signal.model_validate(data)
         except pydantic.ValidationError as e:
-            logger.exception(
-                "Market-data service returned invalid signal payload for symbol %s",
-                symbol,
-            )
             raise DataTransformationError(
                 "Market-data service returned an invalid signal payload"
             ) from e
@@ -67,7 +51,6 @@ class MarketDataClient:
         response = await session.get(uri, headers={"Authorization": f"Bearer {token}"})
         if response.is_error:
             message = self._get_http_error_message(response)
-            logger.error("Market-data API call failed %s - %s", uri, message)
             raise InternalServiceError(
                 f"Market-data service failed {response.status_code} - {message}",
                 status_code=502,
@@ -83,5 +66,4 @@ class MarketDataClient:
         detail = data.get("detail")
         if isinstance(detail, str):
             return detail
-
         return str(detail or response.reason_phrase)
