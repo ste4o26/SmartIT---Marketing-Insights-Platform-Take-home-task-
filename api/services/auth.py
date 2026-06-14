@@ -3,13 +3,15 @@ import logging
 import os
 import typing
 
+import fastapi
 import jose
 import jose.jwt as jwt
 
-from common.constants import BEARER, DEFAULT_TOKEN_EXPIRY_SECONDS
-from api.constants import TokenType, DEFAULT_REFRESH_TOKEN_EXPIRY_SECONDS
+from api.constants import DEFAULT_REFRESH_TOKEN_EXPIRY_SECONDS, TokenType
 from api.dtos.credential import Credential
 from api.dtos.token import Token
+from api.exceptions import AuthenticationError
+from common.constants import BEARER, DEFAULT_TOKEN_EXPIRY_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -32,36 +34,45 @@ class AuthService:
 
     def get_access_token(self, credentials: Credential) -> Token:
         if not credentials.username or not credentials.password:
-            raise ValueError("Username and password are required to authenticate!")
+            raise AuthenticationError(
+                "Invalid username or password",
+                status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            )
 
-        expires_in, refresh_expires_in = self._get_expiry_times()
+        expirations = self._get_expiry_times()
         try:
             access_token = self._create_token(
                 subject=credentials.username,
                 token_type="access",
-                expires_in=expires_in,
+                expires_in=expirations.access_token,
             )
             refresh_token = self._create_token(
                 subject=credentials.username,
                 token_type="refresh",
-                expires_in=refresh_expires_in,
+                expires_in=expirations.refresh_token,
             )
         except jose.JWTError as e:
             logger.exception("Authentication failed!")
-            raise ValueError("Could not create authentication token") from e
+            raise AuthenticationError(
+                "Could not create authentication token",
+                status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
+            ) from e
 
         return Token.model_validate(
             {
                 "access_token": access_token,
                 "refresh_token": refresh_token,
-                "expires_in": expires_in,
-                "refresh_expires_in": refresh_expires_in,
+                "expires_in": expirations.access_token,
+                "refresh_expires_in": expirations.refresh_token,
                 "token_type": BEARER,
             }
         )
 
     def refresh_access_token(self, refresh_token: str) -> Token:
-        subject = self.validate_token(refresh_token, TokenType.REFRESH)
+        try:
+            subject = self.validate_token(refresh_token, TokenType.REFRESH)
+        except (jose.JWTError, ValueError) as e:
+            raise AuthenticationError("Invalid or expired refresh token") from e
         expires_in, _ = self._get_expiry_times()
         access_token = self._create_token(
             subject=subject, token_type=TokenType.ACCESS, expires_in=expires_in
@@ -76,11 +87,9 @@ class AuthService:
 
     def validate_token(self, token: str, token_type: TokenType) -> str:
         payload = jwt.decode(token, key=self._secret, algorithms=[self._algorithm])
-        if TokenType(payload.get("token_type")) != token_type:
-            raise ValueError(f"Expected {token_type} token")
-
-        if not (subject := payload.get("sub")):
-            raise ValueError("Token subject is missing")
+        subject = payload.get("sub")
+        if not subject or TokenType(payload.get("token_type")) != token_type:
+            raise AuthenticationError("Invalid user auth token")
         return subject
 
     def _create_token(self, subject: str, token_type: str, expires_in: int) -> str:

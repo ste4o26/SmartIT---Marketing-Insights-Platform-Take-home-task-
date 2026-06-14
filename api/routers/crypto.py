@@ -1,6 +1,5 @@
 import fastapi
 
-from api.exceptions import MarketDataApiError
 from api.services.market_data import MarketDataService
 from api.utils import get_user_subject
 from common.dtos.signal import Signal
@@ -16,16 +15,10 @@ router = fastapi.APIRouter(
 @router.get("/prices/{symbol}", response_model=Ticker)
 async def get_ticker(symbol: str) -> Ticker:
     service = MarketDataService()
-    try:
-        return await service.get_ticker(symbol)
-    except MarketDataApiError as e:
-        raise fastapi.HTTPException(status_code=e.status_code, detail=str(e)) from e
+    return await service.get_ticker(symbol)
 
 
 @router.get("/signal/{symbol}", response_model=Signal)
 async def get_signal(symbol: str) -> Signal:
     service = MarketDataService()
-    try:
-        return await service.get_signal(symbol)
-    except MarketDataApiError as e:
-        raise fastapi.HTTPException(status_code=e.status_code, detail=str(e)) from e
+    return await service.get_signal(symbol)

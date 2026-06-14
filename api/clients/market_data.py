@@ -5,7 +5,7 @@ import typing
 import httpx
 import pydantic
 
-from api.exceptions import MarketDataApiError
+from api.exceptions import DataTransformationError, InternalServiceError
 from common.dtos.signal import Signal
 from common.dtos.ticker import Ticker
 from common.exceptions import ServiceUnavailableError
@@ -28,7 +28,7 @@ class MarketDataClient:
         try:
             data = await self._get(f"{_TICKER_URI}/{symbol}")
         except ServiceUnavailableError as e:
-            raise MarketDataApiError("Market-data service is unavailable") from e
+            raise InternalServiceError("Market-data service is unavailable") from e
 
         try:
             return Ticker.model_validate(data)
@@ -37,7 +37,7 @@ class MarketDataClient:
                 "Market-data service returned invalid ticker payload for symbol %s",
                 symbol,
             )
-            raise MarketDataApiError(
+            raise DataTransformationError(
                 "Market-data service returned an invalid ticker payload"
             ) from e
 
@@ -45,7 +45,7 @@ class MarketDataClient:
         try:
             data = await self._get(f"{_SIGNAL_URI}/{symbol}")
         except ServiceUnavailableError as e:
-            raise MarketDataApiError("Market-data service is unavailable") from e
+            raise InternalServiceError("Market-data service is unavailable") from e
 
         try:
             return Signal.model_validate(data)
@@ -54,7 +54,7 @@ class MarketDataClient:
                 "Market-data service returned invalid signal payload for symbol %s",
                 symbol,
             )
-            raise MarketDataApiError(
+            raise DataTransformationError(
                 "Market-data service returned an invalid signal payload"
             ) from e
 
@@ -66,24 +66,15 @@ class MarketDataClient:
         )
         response = await session.get(uri, headers={"Authorization": f"Bearer {token}"})
         if response.is_error:
-            logger.error("Market-data API call failed %s", uri)
-            if response.status_code == httpx.codes.NOT_FOUND:
-                raise MarketDataApiError(
-                    f"Market-data resource was not found for {uri}",
-                    status_code=response.status_code,
-                )
-            if response.status_code == httpx.codes.UNPROCESSABLE_ENTITY:
-                raise MarketDataApiError(
-                    self._extract_error_detail(response),
-                    status_code=response.status_code,
-                )
-            raise MarketDataApiError(
-                f"Market-data service failed {response.status_code} - {response.reason_phrase}",
+            message = self._get_http_error_message(response)
+            logger.error("Market-data API call failed %s - %s", uri, message)
+            raise InternalServiceError(
+                f"Market-data service failed {response.status_code} - {message}",
                 status_code=502,
             )
         return response.json()
 
-    def _extract_error_detail(self, response: httpx.Response) -> str:
+    def _get_http_error_message(self, response: httpx.Response) -> str:
         try:
             data = response.json()
         except ValueError:

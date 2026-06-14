@@ -5,6 +5,7 @@ import fastapi.security as security
 import jose
 
 from api.constants import TokenType
+from api.exceptions import AuthenticationError
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +20,5 @@ def get_user_subject(token: str = fastapi.Depends(_oauth2_scheme)) -> str:
     try:
         return service.validate_token(token, TokenType.ACCESS)
     except (jose.JWTError, ValueError) as e:
-        logger.error("Invalid auth token")
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid auth token",
-        ) from e
+        logger.error("Invalid user token")
+        raise AuthenticationError("Invalid user token") from e
